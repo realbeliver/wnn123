@@ -70,8 +70,10 @@ async def run_neuron_test(dut, x_real, w, t, d, grp_name, test_idx):
     tol = abs(gld) * 0.08 + 0.15
     
     # Wait until the neuron core is ready to accept a new input vector
-    while dut.uo_out[2].value == 0:
+    uo_out_val = dut.uo_out.value
+    while ((uo_out_val >> 2) & 1) == 0:
         await ClockCycles(dut.clk, 1)
+        uo_out_val = dut.uo_out.value
         
     # Stream in the 16-bit x vector LSB-first
     for i in range(16):
@@ -81,17 +83,21 @@ async def run_neuron_test(dut, x_real, w, t, d, grp_name, test_idx):
     dut.ui_in.value = set_ui_in(x_valid=0)
     
     # Wait for the design to finish pipeline processing and raise sum_valid
-    while dut.uo_out[1].value == 0:
+    uo_out_val = dut.uo_out.value
+    while ((uo_out_val >> 1) & 1) == 0:
         await ClockCycles(dut.clk, 1)
+        uo_out_val = dut.uo_out.value
         
     # Sample bit 0 immediately on the rising edge of sum_valid
     hw_raw = 0
-    hw_raw |= (dut.uo_out[0].value & 1)
+    uo_out_val = dut.uo_out.value
+    hw_raw |= (uo_out_val & 1)
     
     # Capture the remaining 15 bits of the computed response serially
     for i in range(1, 16):
         await ClockCycles(dut.clk, 1)
-        hw_raw |= ((dut.uo_out[0].value & 1) << i)
+        uo_out_val = dut.uo_out.value
+        hw_raw |= ((uo_out_val & 1) << i)
         
     hw_real = q8p8_to_real(hw_raw)
     diff = hw_real - gld
@@ -134,7 +140,7 @@ async def test_wnn_q8p8(dut):
     await load_cfg_param(dut, 0, real_to_q8p8(w))
     await load_cfg_param(dut, 1, real_to_q8p8(t))
     await load_cfg_param(dut, 2, real_to_q8p8(d))
-    dut._log.info("  -> Parameter stack loaded successfully.\n")
+    dut._log.info("  -> neuron 0 loaded (w=1.0, t=0.0, d=0.80).\n")
     
     # GROUP A - Standard functional values
     dut._log.info("--- GROUP A: Standard functional values ---")
