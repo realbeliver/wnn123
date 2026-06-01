@@ -70,10 +70,10 @@ async def run_neuron_test(dut, x_real, w, t, d, grp_name, test_idx):
     tol = abs(gld) * 0.08 + 0.15
     
     # Wait until the neuron core is ready to accept a new input vector
-    uo_out_val = dut.uo_out.value
+    uo_out_val = int(dut.uo_out.value)
     while ((uo_out_val >> 2) & 1) == 0:
         await ClockCycles(dut.clk, 1)
-        uo_out_val = dut.uo_out.value
+        uo_out_val = int(dut.uo_out.value)
         
     # Stream in the 16-bit x vector LSB-first
     for i in range(16):
@@ -83,20 +83,20 @@ async def run_neuron_test(dut, x_real, w, t, d, grp_name, test_idx):
     dut.ui_in.value = set_ui_in(x_valid=0)
     
     # Wait for the design to finish pipeline processing and raise sum_valid
-    uo_out_val = dut.uo_out.value
+    uo_out_val = int(dut.uo_out.value)
     while ((uo_out_val >> 1) & 1) == 0:
         await ClockCycles(dut.clk, 1)
-        uo_out_val = dut.uo_out.value
+        uo_out_val = int(dut.uo_out.value)
         
     # Sample bit 0 immediately on the rising edge of sum_valid
     hw_raw = 0
-    uo_out_val = dut.uo_out.value
+    uo_out_val = int(dut.uo_out.value)
     hw_raw |= (uo_out_val & 1)
     
     # Capture the remaining 15 bits of the computed response serially
     for i in range(1, 16):
         await ClockCycles(dut.clk, 1)
-        uo_out_val = dut.uo_out.value
+        uo_out_val = int(dut.uo_out.value)
         hw_raw |= ((uo_out_val & 1) << i)
         
     hw_real = q8p8_to_real(hw_raw)
